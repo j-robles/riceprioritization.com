@@ -6,18 +6,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="description" content="Online RICE score calculator to prioritize your options using the RICE framework method.">
+    
+    <!-- Security Headers -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta name="robots" content="noindex, nofollow">
+    
     <link rel="stylesheet" href="minimal.css">
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="RICE Calculator">
   </head>
   <body>
-    <div id="app">
-      <h1>RICE Prioritization Framework</h1>
-      <p>
-        This is an online RICE score calculator to prioritize your options using the RICE framework method.
-        RICE gives you a single score that you can use to prioritize your tasks, projects, or other options.
-        It is based on four inputs: reach, impact, confidence, and effort.
-      </p>
-      <div id="loading"><div></div></div>
+    <div id="app" role="main">
+      <header role="banner">
+        <h1>RICE Prioritization Framework</h1>
+        <p>
+          This is an online RICE score calculator to prioritize your options using the RICE framework method.
+          RICE gives you a single score that you can use to prioritize your tasks, projects, or other options.
+          It is based on four inputs: reach, impact, confidence, and effort.
+        </p>
+      </header>
+      <div id="loading" aria-label="Loading application"><div></div></div>
     </div>
   </body>
   <script src="js/main.js"></script>

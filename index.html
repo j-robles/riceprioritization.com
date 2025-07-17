@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RICE Prioritization Framework</title>
+  <meta name="description" content="Online RICE score calculator to prioritize your options using the RICE framework method.">
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --danger: #dc2626;
+      --background: #f8fafc;
+      --surface: #fff;
+      --text: #1e293b;
+      --text-secondary: #64748b;
+      --border: #e2e8f0;
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      --radius: 0.5rem;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+      background: var(--background);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 2rem auto;
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 2.5rem;
+      width: 100;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .header h1 {
+      margin: 0 0 0.5rem 0;
+      font-size: 2.2rem;
+      color: var(--primary);
+    }
+    .header p {
+      color: var(--text-secondary);
+      margin: 0;
+    }
+    .form-group {
+      margin-bottom: 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+    }
+    .form-group label {
+      font-weight: 500;
+      margin-right: 0.5rem;
+    }
+    input, select {
+      padding: 0.5rem 0.75rem;
+      border: 2px solid var(--border);
+      border-radius: 0.375rem;
+      font-size: 1rem;
+      background: var(--surface);
+      color: var(--text);
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .table-container {
+      overflow-x: auto;
+      margin-bottom: 2rem;
+      width: 100%;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 0;
+    }
+    th, td {
+      padding: 1rem 0.75rem;
+      text-align: left;
+      word-break: break-word;
+    }
+    th {
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    tr:nth-child(even) { background: #f1f5f9; }
+    .score {
+      font-weight: 700;
+      color: var(--primary);
+      font-size: 1.1rem;
+    }
+    .btn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 0.5rem 1.2rem;
+      border-radius: 0.375rem;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-right: 0.5rem;
+    }
+    .btn:last-child { margin-right: 0; }
+    .btn:hover { background: var(--primary-hover); }
+    .btn-danger { background: var(--danger); }
+    .btn-danger:hover { background: #b91c1c; }
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+      justify-content: flex-end;
+    }
+    .share-section {
+      background: #f1f5f9;
+      padding: 1rem;
+      border-radius: var(--radius);
+      margin-bottom: 2rem;
+    }
+    .share-section input {
+      width: 100%;
+      font-family: monospace;
+      font-size: 1rem;
+      margin-top: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .footer {
+      text-align: center;
+      color: var(--text-secondary);
+      margin-top: 2rem;
+      font-size: 0.95rem;
+    }
+    .footer a { color: var(--primary); text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+    @media (max-width: 1200px) {
+      .container {
+        max-width: 98vw;
+        padding: 1rem 0.5rem;
+      }
+    }
+    th:nth-child(1), td:nth-child(1) { min-width: 120px; max-width: 180px; }
+    th:nth-child(2), td:nth-child(2) { width: 120px; min-width: 90px; }
+    th:nth-child(3), td:nth-child(3) { width: 140px; min-width: 110px; }
+    th:nth-child(4), td:nth-child(4) { width: 140px; min-width: 110px; }
+    th:nth-child(5), td:nth-child(5) { width: 120px; min-width: 90px; }
+    th:nth-child(6), td:nth-child(6) { width: 120px; min-width: 90px; }
+    th:nth-child(7), td:nth-child(7) { width: 70px; min-width: 50px; text-align: center; }
+    td input[type="text"] { width: 100%; min-width: 80px; }
+    td input[type="number"] { width: 100%; min-width: 50px; }
+    td select { width: 100%; min-width: 50px; }
+    @media (max-width: 900px) {
+      th:nth-child(1), td:nth-child(1) { min-width: 100px; max-width: 140px; }
+      th:nth-child(2), td:nth-child(2) { width: 100px; min-width: 70px; }
+      th:nth-child(3), td:nth-child(3) { width: 120px; min-width: 90px; }
+      th:nth-child(4), td:nth-child(4) { width: 120px; min-width: 90px; }
+      th:nth-child(5), td:nth-child(5) { width: 100px; min-width: 70px; }
+      th:nth-child(6), td:nth-child(6) { width: 100px; min-width: 70px; }
+      th:nth-child(7), td:nth-child(7) { width: 60px; min-width: 40px; text-align: center; }
+    }
+    @media (max-width: 700px) {
+      th:nth-child(1), td:nth-child(1) { min-width: 80px; max-width: 110px; }
+      th:nth-child(2), td:nth-child(2) { width: 70px; min-width: 50px; }
+      th:nth-child(3), td:nth-child(3) { width: 90px; min-width: 70px; }
+      th:nth-child(4), td:nth-child(4) { width: 90px; min-width: 70px; }
+      th:nth-child(5), td:nth-child(5) { width: 70px; min-width: 50px; }
+      th:nth-child(6), td:nth-child(6) { width: 70px; min-width: 50px; }
+      th:nth-child(7), td:nth-child(7) { width: 50px; min-width: 30px; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import { h, render } from 'https://esm.sh/preact@10.19.6';
+    import { useState, useEffect } from 'https://esm.sh/preact@10.19.6/hooks';
+
+    function encodeState(state) {
+      return btoa(unescape(encodeURIComponent(JSON.stringify(state)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+    function decodeState(encoded) {
+      try {
+        const padded = encoded + '='.repeat((4 - encoded.length % 4) % 4);
+        const decoded = decodeURIComponent(escape(atob(padded.replace(/-/g, '+').replace(/_/g, '/'))));
+        return JSON.parse(decoded);
+      } catch (e) { return null; }
+    }
+    function updateURL(state) {
+      const encoded = encodeState(state);
+      const newURL = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+      window.history.replaceState(null, '', newURL);
+    }
+    function loadFromURL() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const data = urlParams.get('data');
+      if (data) {
+        const decoded = decodeState(data);
+        if (decoded) return decoded;
+      }
+      return null;
+    }
+    function computeScore(row) {
+      const reach = parseFloat(row.reach) || 0;
+      const impact = parseFloat(row.impact) || 0;
+      const confidence = parseFloat(row.confidence) || 0;
+      const effort = parseFloat(row.effort) || 1;
+      if (reach && impact && confidence && effort > 0) {
+        return (reach * impact * confidence) / effort;
+      }
+      return 0;
+    }
+    function sortRows(rows) {
+      return Object.fromEntries(
+        Object.entries(rows).sort(([, a], [, b]) => computeScore(b) - computeScore(a))
+      );
+    }
+    function exportData(state) {
+      const dataStr = JSON.stringify(state, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'rice-projects.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    function importData(event, setState) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = JSON.parse(e.target.result);
+            setState(data);
+            updateURL(data);
+          } catch (error) {
+            alert('Invalid file format');
+          }
+        };
+        reader.readAsText(file);
+      }
+    }
+    function App() {
+      const [state, setState] = useState(() => {
+        const urlState = loadFromURL();
+        return urlState || {
+          projectName: '',
+          units: { effort: 'person weeks', reach: 'people', reachTime: 'month' },
+          rows: {
+            0: { name: 'Build the ultra tech', reach: 5000, impact: 1, confidence: 80, effort: 4 },
+            1: { name: 'Publish a blog post', reach: 100, impact: 1, confidence: 100, effort: 1 },
+            2: { name: 'Release the hounds', reach: 10, impact: 2, confidence: 50, effort: 2 }
+          }
+        };
+      });
+      useEffect(() => { updateURL(state); }, [state]);
+      const addRow = () => {
+        const newId = Math.max(...Object.keys(state.rows).map(Number), -1) + 1;
+        setState(prev => ({
+          ...prev,
+          rows: { ...prev.rows, [newId]: { name: '', reach: '', impact: 1, confidence: 80, effort: '' } }
+        }));
+      };
+      const deleteRow = (id) => {
+        setState(prev => {
+          const newRows = { ...prev.rows };
+          delete newRows[id];
+          return { ...prev, rows: newRows };
+        });
+      };
+      const updateRow = (id, field, value) => {
+        setState(prev => ({
+          ...prev,
+          rows: { ...prev.rows, [id]: { ...prev.rows[id], [field]: value } }
+        }));
+      };
+      const sortByPriority = () => {
+        setState(prev => ({ ...prev, rows: sortRows(prev.rows) }));
+      };
+      const updateProjectName = (value) => {
+        setState(prev => ({ ...prev, projectName: value }));
+      };
+      const updateUnits = (field, value) => {
+        setState(prev => ({ ...prev, units: { ...prev.units, [field]: value } }));
+      };
+      return h('div', { class: 'container' },
+        h('div', { class: 'header' },
+          h('h1', null, 'RICE Prioritization Framework'),
+          h('p', null, 'Prioritize your projects using the RICE scoring method: (Reach × Impact × Confidence) ÷ Effort')
+        ),
+        h('div', { class: 'form-group' },
+          h('label', null, 'Project Name:'),
+          h('input', {
+            type: 'text',
+            value: state.projectName,
+            onInput: e => updateProjectName(e.target.value),
+            placeholder: 'Enter project name...'
+          })
+        ),
+        h('div', { class: 'form-group' },
+          h('label', null, 'Effort in'),
+          h('select', {
+            value: state.units.effort,
+            onChange: e => updateUnits('effort', e.target.value)
+          },
+            h('option', { value: 'person months' }, 'person months'),
+            h('option', { value: 'person weeks' }, 'person weeks'),
+            h('option', { value: 'person days' }, 'person days')
+          ),
+          h('label', null, '| Reach in'),
+          h('input', {
+            type: 'text',
+            value: state.units.reach,
+            onInput: e => updateUnits('reach', e.target.value),
+            style: 'width: 100px;'
+          }),
+          h('label', null, 'per'),
+          h('select', {
+            value: state.units.reachTime,
+            onChange: e => updateUnits('reachTime', e.target.value)
+          },
+            h('option', { value: 'year' }, 'year'),
+            h('option', { value: 'month' }, 'month'),
+            h('option', { value: 'week' }, 'week'),
+            h('option', { value: 'day' }, 'day')
+          )
+        ),
+        h('div', { class: 'table-container' },
+          h('table', null,
+            h('thead', null,
+              h('tr', null,
+                h('th', { title: 'Short description of the project or idea.' }, 'Name'),
+                h('th', { title: 'Estimated number of people or units affected per time period (e.g., 1000 users/month).' }, 'Reach'),
+                h('th', { title: 'Estimated impact per person/unit (choose: Huge/High/Mid/Low/Tiny).' }, 'Impact'),
+                h('th', { title: 'How confident you are in your estimates (choose: High/Mid/Low).' }, 'Confidence'),
+                h('th', { title: 'Estimated work required (in the selected units, e.g., person-weeks).' }, 'Effort'),
+                h('th', { title: 'Calculated automatically: (Reach × Impact × Confidence) ÷ Effort.' }, 'Score'),
+                h('th', { title: 'Add or remove rows.' }, 'Actions')
+              )
+            ),
+            h('tbody', null,
+              Object.entries(state.rows).map(([id, row]) =>
+                h('tr', { key: id },
+                  h('td', null,
+                    h('input', {
+                      type: 'text',
+                      value: row.name,
+                      onInput: e => updateRow(id, 'name', e.target.value),
+                      placeholder: 'Project name...'
+                    })
+                  ),
+                  h('td', null,
+                    h('input', {
+                      type: 'number',
+                      value: row.reach,
+                      onInput: e => updateRow(id, 'reach', e.target.value),
+                      placeholder: '1000',
+                      min: '0'
+                    })
+                  ),
+                  h('td', null,
+                    h('select', {
+                      value: row.impact,
+                      onChange: e => updateRow(id, 'impact', e.target.value)
+                    },
+                      h('option', { value: '3' }, 'Huge (3)'),
+                      h('option', { value: '2' }, 'High (2)'),
+                      h('option', { value: '1' }, 'Mid (1)'),
+                      h('option', { value: '0.5' }, 'Low (0.5)'),
+                      h('option', { value: '0.25' }, 'Tiny (0.25)')
+                    )
+                  ),
+                  h('td', null,
+                    h('select', {
+                      value: row.confidence,
+                      onChange: e => updateRow(id, 'confidence', e.target.value)
+                    },
+                      h('option', { value: '100' }, 'High (100%)'),
+                      h('option', { value: '80' }, 'Mid (80%)'),
+                      h('option', { value: '50' }, 'Low (50%)')
+                    )
+                  ),
+                  h('td', null,
+                    h('input', {
+                      type: 'number',
+                      value: row.effort,
+                      onInput: e => updateRow(id, 'effort', e.target.value),
+                      placeholder: '1',
+                      min: '0.1',
+                      step: '0.1'
+                    })
+                  ),
+                  h('td', { class: 'score' }, computeScore(row).toFixed(0)),
+                  h('td', null,
+                    h('button', {
+                      class: 'btn btn-danger',
+                      onClick: () => deleteRow(id)
+                    }, '×')
+                  )
+                )
+              )
+            )
+          )
+        ),
+        h('div', { class: 'column-definitions', style: 'margin-bottom:2rem;background:#f8fafc;padding:1rem 1.5rem;border-radius:8px;font-size:0.98rem;' },
+          h('strong', null, 'Column Definitions:'),
+          h('ul', null,
+            h('li', null, h('b', null, 'Name:'), ' Short description of the project or idea.'),
+            h('li', null, h('b', null, 'Reach:'), ' Estimated number of people or units affected per time period (e.g., 1000 users/month).'),
+            h('li', null, h('b', null, 'Impact:'), ' Estimated impact per person/unit (choose: Huge/High/Mid/Low/Tiny).'),
+            h('li', null, h('b', null, 'Confidence:'), ' How confident you are in your estimates (choose: High/Mid/Low).'),
+            h('li', null, h('b', null, 'Effort:'), ' Estimated work required (in the selected units, e.g., person-weeks).'),
+            h('li', null, h('b', null, 'Score:'), ' Calculated automatically: (Reach × Impact × Confidence) ÷ Effort.'),
+            h('li', null, h('b', null, 'Actions:'), ' Add or remove rows.')
+          )
+        ),
+        h('div', { class: 'controls' },
+          h('button', { class: 'btn btn-success', onClick: addRow }, 'Add Project'),
+          h('button', { class: 'btn', onClick: sortByPriority }, 'Sort by Priority'),
+          h('button', { class: 'btn', onClick: () => exportData(state) }, 'Export'),
+          h('input', {
+            type: 'file',
+            accept: '.json',
+            onChange: e => importData(e, setState),
+            style: 'display: none;',
+            id: 'import-input'
+          }),
+          h('button', {
+            class: 'btn',
+            onClick: () => document.getElementById('import-input').click()
+          }, 'Import')
+        ),
+        h('div', { class: 'share-section' },
+          h('h3', null, 'Share this URL to save your data:'),
+          h('input', {
+            type: 'text',
+            class: 'share-url',
+            value: `${window.location.origin}${window.location.pathname}?data=${encodeState(state)}`,
+            readOnly: true,
+            onFocus: e => e.target.select()
+          }),
+          h('p', { style: 'font-size: 0.95rem; color: var(--text-secondary);' },
+            'Copy this URL to share your RICE calculations with others or save for later.'
+          )
+        ),
+        h('div', { class: 'footer' },
+          h('p', null, 'Made with 🤖 by ',
+            h('a', { href: 'https://twitter.com/mccrmx', target: '_blank' }, '@mccrmx')
+          ),
+          h('p', null, 'Forked and modernized by ',
+            h('a', { href: 'https://github.com/j-robles', target: '_blank' }, '@j-robles'),
+            ' • ',
+            h('a', { href: 'https://github.com/j-robles/riceprioritization.com', target: '_blank' }, 'Source Code')
+          )
+        )
+      );
+    }
+    render(h(App), document.getElementById('app'));
+  </script>
+</body>
+</html> 
