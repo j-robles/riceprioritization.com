@@ -213,20 +213,49 @@
       }
       return null;
     }
-    function computeScore(row) {
+    function computeScore(row, units) {
       const reach = parseFloat(row.reach) || 0;
       const impact = parseFloat(row.impact) || 0;
       const confidence = parseFloat(row.confidence) || 0;
-      const effort = parseFloat(row.effort) || 1;
+      const effort = parseFloat(row.effort) || 1
+      
       if (reach && impact && confidence && effort > 0) {
-        return (reach * impact * confidence) / effort;
+        // Use passed units instead of global
+        const currentUnits = units || { effort: 'person weeks', reach: 'people', reachTime: 'month' };
+        
+        // Normalize effort to person-weeks
+        let normalizedEffort = effort;
+        if (currentUnits.effort === 'person months') {
+          normalizedEffort = effort * 4.33// ~4.33 per month
+        } else if (currentUnits.effort === 'person days') {
+          normalizedEffort = effort / 5; // 5 days per week
+        }
+        // person weeks is already normalized
+        
+        // Normalize reach to people per month
+        let normalizedReach = reach;
+        if (currentUnits.reach === '% of users') {
+          // Assume 100 = 10000 users for calculation purposes
+          normalizedReach = (reach / 100) *10000
+        }
+        // people is already normalized
+        
+        // Adjust for time period
+        if (currentUnits.reachTime === 'year') {
+          normalizedReach = normalizedReach /12; // convert to monthly
+        } else if (currentUnits.reachTime === 'week') {
+          normalizedReach = normalizedReach * 40.33; // convert to monthly
+        } else if (currentUnits.reachTime === 'day') {
+          normalizedReach = normalizedReach *30; // convert to monthly
+        }
+        // month is already normalized
+        
+        return (normalizedReach * impact * confidence) / normalizedEffort;
       }
       return 0;
     }
     function sortRows(rows) {
-      return Object.fromEntries(
-        Object.entries(rows).sort(([, a], [, b]) => computeScore(b) - computeScore(a))
-      );
+      return rows.sort((a, b) => computeScore(b) - computeScore(a));
     }
     function exportData(state) {
       const dataStr = JSON.stringify(state, null, 2);
@@ -245,6 +274,10 @@
         reader.onload = (e) => {
           try {
             const data = JSON.parse(e.target.result);
+            // Convert old object format to array format if needed
+            if (data.rows && !Array.isArray(data.rows)) {
+              data.rows = Object.entries(data.rows).map(([id, row]) => ({ id, ...row }));
+            }
             setState(data);
             updateURL(data);
           } catch (error) {
@@ -257,39 +290,57 @@
     function App() {
       const [state, setState] = useState(() => {
         const urlState = loadFromURL();
-        return urlState || {
+        if (urlState) {
+          // Convert old object format to array format if needed
+          if (urlState.rows && !Array.isArray(urlState.rows)) {
+            urlState.rows = Object.entries(urlState.rows).map(([id, row]) => ({ id, ...row }));
+          }
+          return urlState;
+        }
+        return {
           projectName: '',
           units: { effort: 'person weeks', reach: 'people', reachTime: 'month' },
-          rows: {
-            0: { name: 'Build the ultra tech', reach: 5000, impact: 1, confidence: 80, effort: 4 },
-            1: { name: 'Publish a blog post', reach: 100, impact: 1, confidence: 100, effort: 1 },
-            2: { name: 'Release the hounds', reach: 10, impact: 2, confidence: 50, effort: 2 }
-          }
+          rows: [
+            { id: '0', name: 'Build the ultra tech', reach: 5000, impact: 1, confidence: 80, effort: 4 },
+            { id: '1', name: 'Publish a blog post', reach: 100, impact: 1, confidence: 100, effort: 1 },
+            { id: '2', name: 'Release the hounds', reach: 10, impact: 2, confidence: 50, effort: 2 }
+          ]
         };
       });
-      useEffect(() => { updateURL(state); }, [state]);
+      
+      // Remove global units effect - no longer needed
+      // useEffect(() => {
+      //   window.currentUnits = state.units;
+      // }, [state.units]);
+      
+      useEffect(() => updateURL(state), [state]);
+      
+      const computeScoreWithUnits = (row) => {
+        return computeScore(row, state.units);
+      };
       const addRow = () => {
-        const newId = Math.max(...Object.keys(state.rows).map(Number), -1) + 1;
+        const newId = Math.max(...state.rows.map(row => parseInt(row.id)), -1) + 1;
         setState(prev => ({
           ...prev,
-          rows: { ...prev.rows, [newId]: { name: '', reach: '', impact: 1, confidence: 80, effort: '' } }
+          rows: [...prev.rows, { id: newId.toString(), name: '', reach: '', impact: 1, confidence: 80, effort: '' }]
         }));
       };
       const deleteRow = (id) => {
-        setState(prev => {
-          const newRows = { ...prev.rows };
-          delete newRows[id];
-          return { ...prev, rows: newRows };
-        });
+        setState(prev => ({
+          ...prev,
+          rows: prev.rows.filter(row => row.id !== id)
+        }));
       };
       const updateRow = (id, field, value) => {
         setState(prev => ({
           ...prev,
-          rows: { ...prev.rows, [id]: { ...prev.rows[id], [field]: value } }
+          rows: prev.rows.map(row =>
+            row.id === id ? { ...row, [field]: value } : row
+          )
         }));
       };
       const sortByPriority = () => {
-        setState(prev => ({ ...prev, rows: sortRows(prev.rows) }));
+        setState(prev => ({ ...prev, rows: sortRows([...prev.rows]) }));
       };
       const updateProjectName = (value) => {
         setState(prev => ({ ...prev, projectName: value }));
@@ -301,6 +352,18 @@
         h('div', { class: 'header' },
           h('h1', null, 'RICE Prioritization Framework'),
           h('p', null, 'Prioritize your projects using the RICE scoring method: (Reach × Impact × Confidence) ÷ Effort')
+        ),
+        h('div', { class: 'column-definitions', style: 'margin-bottom:2rem;background:#f8fafc;padding:1rem 1.5rem;border-radius:8px;font-size:0.98rem;' },
+          h('strong', null, 'Column Definitions:'),
+          h('ul', null,
+            h('li', null, h('b', null, 'Name:'), ' Short description of the project or idea.'),
+            h('li', null, h('b', null, 'Reach:'), ' Estimated number of people or units affected per time period (e.g., 1000 users/month).'),
+            h('li', null, h('b', null, 'Impact:'), ' Estimated impact per person/unit (choose: Huge/High/Mid/Low/Tiny).'),
+            h('li', null, h('b', null, 'Confidence:'), ' How confident you are in your estimates (choose: High/Mid/Low).'),
+            h('li', null, h('b', null, 'Effort:'), ' Estimated work required (in the selected units, e.g., person-weeks).'),
+            h('li', null, h('b', null, 'Score:'), ' Calculated automatically: (Reach × Impact × Confidence) ÷ Effort.'),
+            h('li', null, h('b', null, 'Actions:'), ' Add or remove rows.')
+          )
         ),
         h('div', { class: 'form-group' },
           h('label', null, 'Project Name:'),
@@ -321,13 +384,23 @@
             h('option', { value: 'person weeks' }, 'person weeks'),
             h('option', { value: 'person days' }, 'person days')
           ),
-          h('label', null, '| Reach in'),
-          h('input', {
-            type: 'text',
-            value: state.units.reach,
-            onInput: e => updateUnits('reach', e.target.value),
-            style: 'width: 100px;'
-          }),
+          h('label', null, 'Reach in'),
+          state.units.reach === 'custom' ? 
+            h('input', {
+              type: 'text',
+              value: state.units.reach,
+              onInput: e => updateUnits('reach', e.target.value),
+              style: 'width: 100px;',
+              placeholder: 'e.g., orders'
+            }) :
+            h('select', {
+              value: state.units.reach,
+              onChange: e => updateUnits('reach', e.target.value)
+            },
+              h('option', { value: 'people' }, 'people'),
+              h('option', { value: '% of users' }, '% of users'),
+              h('option', { value: 'custom' }, 'custom')
+            ),
           h('label', null, 'per'),
           h('select', {
             value: state.units.reachTime,
@@ -353,13 +426,13 @@
               )
             ),
             h('tbody', null,
-              Object.entries(state.rows).map(([id, row]) =>
-                h('tr', { key: id },
+              state.rows.map((row) =>
+                h('tr', { key: row.id },
                   h('td', null,
                     h('input', {
                       type: 'text',
                       value: row.name,
-                      onInput: e => updateRow(id, 'name', e.target.value),
+                      onInput: e => updateRow(row.id, 'name', e.target.value),
                       placeholder: 'Project name...'
                     })
                   ),
@@ -367,7 +440,7 @@
                     h('input', {
                       type: 'number',
                       value: row.reach,
-                      onInput: e => updateRow(id, 'reach', e.target.value),
+                      onInput: e => updateRow(row.id, 'reach', e.target.value),
                       placeholder: '1000',
                       min: '0'
                     })
@@ -375,7 +448,7 @@
                   h('td', null,
                     h('select', {
                       value: row.impact,
-                      onChange: e => updateRow(id, 'impact', e.target.value)
+                      onChange: e => updateRow(row.id, 'impact', e.target.value)
                     },
                       h('option', { value: '3' }, 'Huge (3)'),
                       h('option', { value: '2' }, 'High (2)'),
@@ -387,7 +460,7 @@
                   h('td', null,
                     h('select', {
                       value: row.confidence,
-                      onChange: e => updateRow(id, 'confidence', e.target.value)
+                      onChange: e => updateRow(row.id, 'confidence', e.target.value)
                     },
                       h('option', { value: '100' }, 'High (100%)'),
                       h('option', { value: '80' }, 'Mid (80%)'),
@@ -398,34 +471,22 @@
                     h('input', {
                       type: 'number',
                       value: row.effort,
-                      onInput: e => updateRow(id, 'effort', e.target.value),
+                      onInput: e => updateRow(row.id, 'effort', e.target.value),
                       placeholder: '1',
                       min: '0.1',
                       step: '0.1'
                     })
                   ),
-                  h('td', { class: 'score' }, computeScore(row).toFixed(0)),
+                  h('td', { class: 'score' }, computeScoreWithUnits(row).toFixed(0)),
                   h('td', null,
                     h('button', {
                       class: 'btn btn-danger',
-                      onClick: () => deleteRow(id)
+                      onClick: () => deleteRow(row.id)
                     }, '×')
                   )
                 )
               )
             )
-          )
-        ),
-        h('div', { class: 'column-definitions', style: 'margin-bottom:2rem;background:#f8fafc;padding:1rem 1.5rem;border-radius:8px;font-size:0.98rem;' },
-          h('strong', null, 'Column Definitions:'),
-          h('ul', null,
-            h('li', null, h('b', null, 'Name:'), ' Short description of the project or idea.'),
-            h('li', null, h('b', null, 'Reach:'), ' Estimated number of people or units affected per time period (e.g., 1000 users/month).'),
-            h('li', null, h('b', null, 'Impact:'), ' Estimated impact per person/unit (choose: Huge/High/Mid/Low/Tiny).'),
-            h('li', null, h('b', null, 'Confidence:'), ' How confident you are in your estimates (choose: High/Mid/Low).'),
-            h('li', null, h('b', null, 'Effort:'), ' Estimated work required (in the selected units, e.g., person-weeks).'),
-            h('li', null, h('b', null, 'Score:'), ' Calculated automatically: (Reach × Impact × Confidence) ÷ Effort.'),
-            h('li', null, h('b', null, 'Actions:'), ' Add or remove rows.')
           )
         ),
         h('div', { class: 'controls' },
